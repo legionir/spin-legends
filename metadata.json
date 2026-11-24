@@ -1,0 +1,8 @@
+{
+  "name": "Remix Spin Legends v12",
+  "description": "3D Physics-Driven Strategic Arena Combat with customizable mechanical spinning tops, elemental abilities, tactical commands, and tournament progression.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,835 @@
+@import "tailwindcss";
+
+:root {
+  --sl-ui-scale: 1;
+  --sl-font-display: 'Chakra Petch', 'Exo 2', system-ui, sans-serif;
+  --sl-font-sans: 'Exo 2', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #060913;
+    color: #f1f5f9;
+    font-family: var(--sl-font-sans);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  canvas {
+    touch-action: none;
+    display: block;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+}
+
+.font-display {
+  font-family: var(--sl-font-display);
+  letter-spacing: 0.03em;
+}
+
+.font-mono-tech {
+  font-family: var(--sl-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-title-metal {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 58%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sl-safe-inset {
+  --sl-inset-x: 1rem;
+  --sl-inset-y: 1rem;
+  padding-top: calc(var(--sl-inset-y) + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(var(--sl-inset-y) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(var(--sl-inset-x) + env(safe-area-inset-left, 0px));
+  padding-right: calc(var(--sl-inset-x) + env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 640px) {
+  .sl-safe-inset {
+    --sl-inset-x: 1.5rem;
+    --sl-inset-y: 1.25rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .sl-safe-inset {
+    --sl-inset-x: 2rem;
+    --sl-inset-y: 1.75rem;
+  }
+}
+
+.sl-ui-scaled {
+  font-size: calc(1rem * var(--sl-ui-scale, 1));
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Smoked-Glass Stadium Panels & Machined Anodized Hardware Controls
+   ========================================================================== */
+
+@keyframes slModalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.sl-panel-chassis {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0%, transparent 45%),
+    linear-gradient(180deg, rgba(11, 18, 36, 0.9) 0%, rgba(5, 9, 20, 0.94) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow:
+    0 14px 32px rgba(2, 6, 23, 0.68),
+    0 2px 0 rgba(2, 6, 23, 0.85),
+    inset 0 1px 0 rgba(248, 250, 252, 0.16),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.9);
+}
+
+.sl-panel-modal {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(11, 18, 36, 0.92) 0%, rgba(4, 8, 19, 0.96) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  box-shadow:
+    0 28px 72px rgba(0, 0, 0, 0.86),
+    0 0 0 1px rgba(15, 23, 42, 0.85),
+    0 4px 0 rgba(2, 6, 23, 0.95),
+    inset 0 1px 0 rgba(241, 245, 249, 0.2),
+    inset 0 -2px 0 rgba(2, 6, 23, 0.95);
+  animation: slModalEnter 175ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sl-hairline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(148, 163, 184, 0.38) 22%,
+    rgba(56, 189, 248, 0.28) 50%,
+    rgba(148, 163, 184, 0.38) 78%,
+    transparent 100%
+  );
+}
+
+.sl-chamfer {
+  clip-path: polygon(
+    11px 0%,
+    calc(100% - 11px) 0%,
+    100% 11px,
+    100% calc(100% - 11px),
+    calc(100% - 11px) 100%,
+    11px 100%,
+    0% calc(100% - 11px),
+    0% 11px
+  );
+  filter: drop-shadow(0 5px 0 rgba(2, 8, 22, 0.85)) drop-shadow(0 12px 24px rgba(14, 165, 233, 0.24));
+}
+
+.sl-chamfer:not(:disabled):active {
+  filter: drop-shadow(0 2px 0 rgba(2, 8, 22, 0.85)) drop-shadow(0 5px 12px rgba(14, 165, 233, 0.2));
+}
+
+/* Tactile machined anodized buttons */
+.sl-btn-3d {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.45rem;
+  letter-spacing: 0.02em;
+  transition:
+    transform 110ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 130ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+  will-change: transform;
+}
+
+.sl-btn-3d::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    112deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.22) 48%,
+    rgba(255, 255, 255, 0.04) 55%,
+    transparent 75%
+  );
+  transform: translateX(-115%);
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.sl-btn-3d:not(:disabled):hover::before {
+  transform: translateX(115%);
+}
+
+.sl-btn-3d:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.sl-btn-3d:not(:disabled):active {
+  transform: translateY(2.5px);
+}
+
+.sl-btn-3d-sm:not(:disabled):active {
+  transform: translateY(2px);
+}
+
+.sl-btn-3d:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+/* Primary Electric Alloy Trigger */
+.sl-btn-3d-cyan {
+  color: #03111f;
+  background: linear-gradient(180deg, #67e8f9 0%, #22d3ee 32%, #0284c7 100%);
+  border: 1px solid rgba(165, 243, 252, 0.85);
+  box-shadow:
+    0 4px 0 #083344,
+    0 10px 24px rgba(14, 165, 233, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -2px 0 rgba(7, 89, 133, 0.55);
+}
+.sl-btn-3d-cyan:not(:disabled):active {
+  box-shadow:
+    0 1.5px 0 #083344,
+    0 4px 12px rgba(14, 165, 233, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* Ignition Gold / Amber Alloy Trigger */
+.sl-btn-3d-amber {
+  color: #1c0f00;
+  background: linear-gradient(180deg, #fde68a 0%, #f59e0b 44%, #b45309 100%);
+  border: 1px solid rgba(253, 230, 138, 0.78);
+  box-shadow:
+    0 4px 0 #78350f,
+    0 10px 22px rgba(245, 158, 11, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68),
+    inset 0 -2px 0 rgba(146, 64, 14, 0.55);
+}
+.sl-btn-3d-amber:not(:disabled):active {
+  box-shadow:
+    0 1.5px 0 #78350f,
+    0 4px 10px rgba(245, 158, 11, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Emerald Victory / Confirm Trigger */
+.sl-btn-3d-emerald {
+  color: #022c22;
+  background: linear-gradient(180deg, #6ee7b7 0%, #10b981 48%, #047857 100%);
+  border: 1px solid rgba(167, 243, 208, 0.72);
+  box-shadow:
+    0 4px 0 #064e3b,
+    0 10px 20px rgba(16, 185, 129, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    inset 0 -2px 0 rgba(6, 95, 70, 0.5);
+}
+.sl-btn-3d-emerald:not(:disabled):active {
+  box-shadow:
+    0 1px 0 #064e3b,
+    0 4px 10px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+/* Machined Anodized Gunmetal Button */
+.sl-btn-3d-slate {
+  color: #e2e8f0;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(33, 44, 68, 0.94) 0%, rgba(17, 24, 42, 0.96) 56%, rgba(10, 15, 28, 0.98) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  box-shadow:
+    0 3px 0 #040711,
+    0 8px 18px rgba(2, 6, 23, 0.55),
+    inset 0 1px 0 rgba(241, 245, 249, 0.18),
+    inset 0 -1px 0 rgba(2, 6, 23, 0.7);
+}
+.sl-btn-3d-slate:not(:disabled):hover {
+  color: #ffffff;
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow:
+    0 3px 0 #040711,
+    0 10px 22px rgba(14, 165, 233, 0.16),
+    inset 0 1px 0 rgba(248, 250, 252, 0.25);
+}
+.sl-btn-3d-slate:not(:disabled):active {
+  box-shadow:
+    0 1px 0 #040711,
+    0 3px 8px rgba(2, 6, 23, 0.5),
+    inset 0 1px 0 rgba(226, 232, 240, 0.14);
+}
+
+/* Compact 3D Gunmetal Keycap / Icon Button */
+.sl-btn-3d-sm.sl-btn-3d-slate {
+  box-shadow:
+    0 2.5px 0 #040711,
+    0 6px 12px rgba(2, 6, 23, 0.48),
+    inset 0 1px 0 rgba(241, 245, 249, 0.18);
+}
+.sl-btn-3d-sm.sl-btn-3d-slate:not(:disabled):active {
+  box-shadow:
+    0 1px 0 #040711,
+    0 2px 6px rgba(2, 6, 23, 0.4),
+    inset 0 1px 0 rgba(226, 232, 240, 0.12);
+}
+
+/* Violet / Spectator / Special Trigger */
+.sl-btn-3d-violet {
+  color: #f5f3ff;
+  background: linear-gradient(180deg, #a78bfa 0%, #7c3aed 50%, #4c1d95 100%);
+  border: 1px solid rgba(216, 180, 254, 0.65);
+  box-shadow:
+    0 4px 0 #2e1065,
+    0 10px 22px rgba(124, 58, 237, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+.sl-btn-3d-violet:not(:disabled):active {
+  box-shadow:
+    0 1px 0 #2e1065,
+    0 4px 10px rgba(124, 58, 237, 0.24);
+}
+
+/* Crimson Danger / Exit Trigger */
+.sl-btn-3d-crimson {
+  color: #fff1f2;
+  background: linear-gradient(180deg, #fb7185 0%, #e11d48 52%, #9f1239 100%);
+  border: 1px solid rgba(254, 205, 211, 0.58);
+  box-shadow:
+    0 4px 0 #4c0519,
+    0 8px 18px rgba(225, 29, 72, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+.sl-btn-3d-crimson:not(:disabled):active {
+  box-shadow:
+    0 1px 0 #4c0519,
+    0 3px 8px rgba(225, 29, 72, 0.22);
+}
+
+/* Recessed HUD gauge track */
+.sl-bar-track {
+  background: rgba(6, 10, 22, 0.92);
+  border: 1px solid rgba(51, 65, 85, 0.65);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.sl-bar-fill {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* Subtle metallic spin animation for crest emblem */
+@keyframes slSlowSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Static high-contrast crimson state for critical stamina/armor */
+.sl-critical-hud-pulse {
+  border-color: rgba(251, 113, 133, 0.92);
+  box-shadow:
+    0 12px 28px rgba(2, 6, 23, 0.78),
+    0 0 0 1px rgba(244, 63, 94, 0.58),
+    0 0 18px rgba(225, 29, 72, 0.34),
+    inset 0 1px 0 rgba(254, 205, 211, 0.22);
+}
+
+.sl-critical-track-pulse {
+  border-color: rgba(244, 63, 94, 0.85);
+}
+
+.sl-critical-bar-pulse {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 0 10px rgba(244, 63, 94, 0.68);
+}
+
+.sl-crest-spin {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: slSlowSpin 18s linear infinite;
+}
+
+@keyframes slDamagePopup {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.55);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -65%) scale(1.12);
+  }
+  36% {
+    transform: translate(-50%, -80%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -145%) scale(0.94);
+  }
+}
+
+.sl-damage-popup {
+  animation: slDamagePopup 740ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes slAnimeSpeedBurst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.82);
+  }
+  20% {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+}
+
+.sl-anime-speedburst {
+  animation: slAnimeSpeedBurst 185ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Broadcast HUD Angled Wings & Machined Segmented Gauges */
+.sl-hud-wing-left {
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+}
+
+.sl-hud-wing-right {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 14px 100%);
+}
+
+.sl-hud-clock-hex {
+  clip-path: polygon(12px 0%, calc(100% - 12px) 0%, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0% 50%);
+}
+
+.sl-hud-hex-clip {
+  clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+}
+
+.sl-seg-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.sl-seg-cell {
+  border-radius: 1.5px;
+  transition: opacity 110ms ease, background-color 110ms ease;
+}
+
+/* Skewed Diagonal Esports Mode Banners */
+.sl-skew-banner {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transform: skewX(-12deg);
+  transition:
+    transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.sl-skew-banner > * {
+  transform: skewX(12deg);
+}
+
+.sl-skew-banner:not(:disabled):hover {
+  transform: skewX(-12deg) translateX(-5px);
+  filter: brightness(1.1);
+}
+
+.sl-skew-banner:not(:disabled):active {
+  transform: skewX(-12deg) translateX(-2px) translateY(1.5px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-panel-modal,
+  .sl-damage-popup {
+    animation: none;
+  }
+  .sl-anime-speedburst {
+    display: none;
+  }
+  .sl-btn-3d::before {
+    display: none;
+  }
+  .sl-crest-spin {
+    animation: none;
+  }
+  .sl-skew-banner:not(:disabled):hover {
+    transform: skewX(-12deg);
+  }
+}
+
+/* Mobile Safari friendly modal scrolling without locking canvas gestures */
+.sl-scroll {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Custom sleek scrollbars for workshop/collection drawers */
+.sl-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.sl-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+.sl-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.45);
+  border-radius: 3px;
+}
+.sl-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* Prevent unwanted iOS Safari focus zoom on form controls */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ==========================================================================
+   Combat HUD Compact 2-Line Strip (< 640px width OR <= 520px height)
+   ========================================================================== */
+.sl-hud-compact-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.sl-hud-desktop-detail {
+  display: none;
+}
+
+@media (min-width: 640px) and (min-height: 521px) {
+  .sl-hud-compact-row {
+    display: none;
+  }
+
+  .sl-hud-desktop-detail {
+    display: block;
+  }
+}
+
+.sl-ls-modal-header,
+.sl-ls-modal-tabs,
+.sl-ls-workshop-header,
+.sl-ls-workshop-stats,
+.sl-ls-workshop-tabs {
+  flex-shrink: 0;
+}
+
+.sl-ls-modal-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.sl-ls-modal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sl-ls-modal-tabs > *,
+.sl-ls-modal-tabs button {
+  flex-shrink: 0;
+  touch-action: pan-x;
+}
+
+@media (max-width: 639px), (pointer: coarse) {
+  .sl-ls-workshop-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .sl-ls-workshop-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sl-ls-workshop-tabs button {
+    flex-shrink: 0;
+    touch-action: pan-x;
+  }
+}
+
+/* ==========================================================================
+   Mobile Landscape Optimization (Short & Wide Touchscreens: <= 520px height)
+   ========================================================================== */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sl-safe-inset {
+    --sl-inset-x: 0.75rem;
+    --sl-inset-y: 0.4rem;
+  }
+
+  .sl-panel-modal {
+    max-height: calc(100dvh - 0.85rem) !important;
+  }
+
+  .sl-ls-modal-header {
+    flex-shrink: 0 !important;
+    padding: 0.45rem 1rem !important;
+  }
+
+  .sl-ls-modal-tabs {
+    flex-shrink: 0 !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    touch-action: pan-x !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    padding: 0.45rem 1rem !important;
+    scrollbar-width: none;
+  }
+  .sl-ls-modal-tabs > *,
+  .sl-ls-modal-tabs button {
+    flex-shrink: 0 !important;
+    touch-action: pan-x !important;
+  }
+  .sl-ls-modal-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Title Screen: Holographic Command Lobby Compact Landscape Rules */
+  .sl-ls-title-topbar {
+    gap: 0.35rem !important;
+  }
+  .sl-lobby-deck {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    overflow: visible !important;
+  }
+  .sl-ls-title-pill {
+    min-height: 32px !important;
+    padding: 0.2rem 0.55rem !important;
+    font-size: 0.72rem !important;
+  }
+  .sl-ls-title-keycap {
+    min-height: 32px !important;
+    min-width: 32px !important;
+    padding-top: 0.18rem !important;
+    padding-bottom: 0.18rem !important;
+  }
+  .sl-ls-lobby-left {
+    max-width: min(230px, 31vw) !important;
+    gap: 0.32rem !important;
+  }
+  .sl-ls-lobby-right {
+    max-width: min(260px, 34vw) !important;
+    gap: 0.26rem !important;
+    margin-right: 0.35rem !important;
+  }
+  .sl-ls-title-lockup {
+    margin-bottom: 0.2rem !important;
+    gap: 0.38rem !important;
+  }
+  .sl-ls-title-crest {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .sl-ls-title-wordmark {
+    max-width: 138px !important;
+  }
+  .sl-ls-title-telemetry {
+    margin-bottom: 0.18rem !important;
+    padding: 0.26rem 0.55rem !important;
+  }
+  .sl-ls-title-cta {
+    min-height: 38px !important;
+    padding: 0.3rem 0.9rem !important;
+    font-size: 0.82rem !important;
+  }
+  .sl-ls-title-banner {
+    min-height: 30px !important;
+    padding: 0.2rem 0.65rem !important;
+    font-size: 0.7rem !important;
+  }
+  .sl-ls-title-tile {
+    min-height: 32px !important;
+    padding: 0.22rem 0.45rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  /* Battle HUD: Slim 2-line corner strips keeping stadium center unobstructed */
+  .sl-ls-hud-card {
+    width: clamp(165px, 27vw, 225px) !important;
+    padding: 0.32rem 0.55rem !important;
+    border-radius: 0.65rem !important;
+    clip-path: none !important;
+  }
+  .sl-ls-hud-parts {
+    display: none !important;
+  }
+  .sl-ls-hud-crest-full {
+    display: none !important;
+  }
+  .sl-ls-hud-crest-compact {
+    display: inline-flex !important;
+  }
+  .sl-ls-hud-clock {
+    padding: 0.2rem 0.8rem !important;
+  }
+  .sl-ls-hud-clock-time {
+    font-size: 1rem !important;
+  }
+  .sl-ls-hud-clock-sub {
+    display: none !important;
+  }
+  .sl-ls-hud-utils {
+    flex-direction: row !important;
+    gap: 0.35rem !important;
+  }
+  .sl-ls-hud-util-btn {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  /* Launch Panel: Horizontal split deck so arena center remains unobstructed */
+  .sl-ls-launch-deck {
+    max-width: min(640px, 94vw) !important;
+    padding: 0.45rem 0.75rem !important;
+    margin-bottom: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.75rem;
+    row-gap: 0.35rem;
+    align-items: center;
+    text-align: left !important;
+  }
+  .sl-ls-launch-hint {
+    grid-column: 1 / -1;
+    margin-bottom: 0 !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.65rem !important;
+  }
+  .sl-ls-launch-trigger {
+    width: auto !important;
+    min-height: 44px !important;
+    padding: 0.5rem 1.1rem !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap;
+  }
+
+  /* Corner Radial Skill Cluster: Scaled cleanly for mobile landscape thumb arc */
+  .sl-ls-radial-cluster {
+    width: 158px !important;
+    height: 148px !important;
+  }
+  .sl-ls-radial-ult {
+    width: 54px !important;
+    height: 54px !important;
+  }
+  .sl-ls-radial-sec {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  /* Workshop Hangar: Compact left stack + right panel leaving open center 3D model */
+  .sl-ls-workshop-header {
+    flex-shrink: 0 !important;
+    padding: 0.35rem 0.7rem !important;
+  }
+  .sl-ls-workshop-main {
+    flex-direction: row !important;
+  }
+  .sl-ls-workshop-mobile-stage {
+    display: none !important;
+  }
+  .sl-ls-workshop-left {
+    display: flex !important;
+    width: min(215px, 28vw) !important;
+    padding: 0.4rem !important;
+    gap: 0.3rem !important;
+  }
+  .sl-ls-workshop-drawer {
+    max-width: min(350px, 42vw) !important;
+    height: 100% !important;
+    flex: none !important;
+  }
+  .sl-ls-workshop-stats {
+    flex-shrink: 0 !important;
+    padding: 0.3rem 0.7rem !important;
+  }
+  .sl-ls-workshop-stats-grid {
+    gap: 0.2rem !important;
+    margin-bottom: 0.15rem !important;
+  }
+  .sl-ls-workshop-stat-cell {
+    padding: 0.12rem 0.3rem !important;
+  }
+  .sl-ls-workshop-tabs {
+    flex-shrink: 0 !important;
+    padding: 0.32rem 0.7rem !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    touch-action: pan-x !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .sl-ls-workshop-tabs button {
+    flex-shrink: 0 !important;
+    touch-action: pan-x !important;
+  }
+  .sl-ls-workshop-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .sl-ls-workshop-body {
+    padding: 0.55rem 0.7rem !important;
+  }
+}

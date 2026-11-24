@@ -1,0 +1,100 @@
+name: Build & Package Spin Legends
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint, Test & Build Game Artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Type-check & Lint
+        run: npm run lint
+
+      - name: Run unit & simulation tests
+        run: npm test
+
+      - name: Build production web & server bundles
+        run: npm run build
+
+      - name: Package static & full-stack zip archives
+        run: |
+          mkdir -p release-zips fullstack-stage
+          (cd dist && zip -r ../release-zips/spin-legends-static-web.zip .)
+          cp -r dist fullstack-stage/dist
+          cp server.js package.json .env.example fullstack-stage/
+          (cd fullstack-stage && zip -r ../release-zips/spin-legends-fullstack.zip .)
+
+      - name: Upload Static Single-Player Web Build (No Server Required)
+        uses: actions/upload-artifact@v4
+        with:
+          name: spin-legends-static-web
+          path: |
+            dist/
+            release-zips/spin-legends-static-web.zip
+          retention-days: 30
+
+      - name: Upload Full-Stack Build (Static + Node Server)
+        uses: actions/upload-artifact@v4
+        with:
+          name: spin-legends-fullstack
+          path: |
+            release-zips/spin-legends-fullstack.zip
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Static Build Archive
+        uses: actions/download-artifact@v4
+        with:
+          name: spin-legends-static-web
+          path: artifacts/static
+
+      - name: Download Full-Stack Build Archive
+        uses: actions/download-artifact@v4
+        with:
+          name: spin-legends-fullstack
+          path: artifacts/fullstack
+
+      - name: Create GitHub Release with Build Zips
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/static/spin-legends-static-web.zip
+            artifacts/fullstack/spin-legends-fullstack.zip
+          generate_release_notes: true
