@@ -46,3 +46,4 @@ jobs:
           config: sweetmelon.yaml
           icon: android/icon-1024.png
           artifact_name: spin-legends-apk
+          flutter_version: 3.47.9
