@@ -6,7 +6,7 @@ project:
   version: 1.0.0
   application_id: com.legionir.spinlegends
   dart_package: spin_legends
-  icon: public/pwa-512x512.png
+  icon: android/icon-1024.png
 
 plugin_selection:
   mode: auto

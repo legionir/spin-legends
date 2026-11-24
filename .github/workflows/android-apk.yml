@@ -44,5 +44,5 @@ jobs:
           target: apk
           www: www
           config: sweetmelon.yaml
-          icon: public/pwa-512x512.png
+          icon: android/icon-1024.png
           artifact_name: spin-legends-apk
