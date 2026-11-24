@@ -1,0 +1,58 @@
+name: Android APK (Sweetmelon)
+
+on:
+  push:
+    branches: [ci/android-apk]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Build web game
+        env:
+          VITE_BASE_PATH: ./
+        run: npx vite build
+
+      - name: Prepare www folder
+        run: |
+          rm -rf www
+          cp -r dist www
+
+      - name: Force landscape in the APK
+        run: |
+          printf '%s\n' \
+            "// sweetmelon:uses orientation" \
+            "(function(){var n=0;function lock(){try{if(window.NativeSDK&&NativeSDK.orientation){NativeSDK.orientation.lock('landscape');return;}if(window.Native&&window.Native.call){window.Native.call({plugin:'orientation',method:'lock',args:{orientation:'landscape'}});return;}}catch(e){}if(n++<60)setTimeout(lock,250);}lock();})();" \
+            > www/force-landscape.js
+          sed -i 's#</head>#<script src="./force-landscape.js"></script></head>#' www/index.html
+          grep -c force-landscape www/index.html
+
+      - name: Build APK with Sweetmelon
+        uses: legionir/sweetmelon@v2.7.0
+        with:
+          target: apk
+          www: www
+          config: sweetmelon.yaml
+          icon: public/pwa-512x512.png
+          keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
+          keystore_password: ${{ secrets.KEYSTORE_PASSWORD }}
+          key_alias: ${{ secrets.KEY_ALIAS }}
+          key_password: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: spin-legends-apk
+          path: '**/*.apk'
+          if-no-files-found: error

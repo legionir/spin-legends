@@ -1,0 +1,16 @@
+core: "2.7"
+
+project:
+  name: spin_legends
+  display_name: Spin Legends
+  version: 1.0.0
+  application_id: com.legionir.spinlegends
+  dart_package: spin_legends
+  icon: public/pwa-512x512.png
+
+plugin_selection:
+  mode: auto
+  include: [permission, orientation]
+  exclude: []
+
+plugins: {}
