@@ -39,20 +39,10 @@ jobs:
           grep -c force-landscape www/index.html
 
       - name: Build APK with Sweetmelon
-        uses: legionir/sweetmelon@v2.7.0
+        uses: legionir/sweetmelon@v2.6.0
         with:
           target: apk
           www: www
           config: sweetmelon.yaml
           icon: public/pwa-512x512.png
-          keystore_base64: ${{ secrets.KEYSTORE_BASE64 }}
-          keystore_password: ${{ secrets.KEYSTORE_PASSWORD }}
-          key_alias: ${{ secrets.KEY_ALIAS }}
-          key_password: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: spin-legends-apk
-          path: '**/*.apk'
-          if-no-files-found: error
+          artifact_name: spin-legends-apk
