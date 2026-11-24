@@ -22,7 +22,7 @@ jobs:
       - name: Build web game
         env:
           VITE_BASE_PATH: ./
-        run: npx vite build
+        run: npx vite build --assetsDir js
 
       - name: Prepare www folder
         run: |
