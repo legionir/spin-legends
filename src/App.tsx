@@ -102,6 +102,7 @@ import {
   type OnlineRoomView,
 } from './infrastructure/onlineClient';
 import { soundEngine } from './audio/soundEngine';
+import type { StatusLoopId } from './audio/audioManifest';
 import { TitleOverlay } from './ui/TitleOverlay';
 import { BattleHud, CombatDamagePopup, HudSnapshot } from './ui/BattleHud';
 import { ReplayOverlay } from './ui/ReplayOverlay';
@@ -120,6 +121,27 @@ import { OfflineIndicator } from './ui/OfflineIndicator';
 import { HowToPlayModal } from './ui/HowToPlayModal';
 
 type AppShellState = 'title' | 'playing' | 'paused' | 'replay' | 'gameover';
+
+const STATUS_LOOP_BY_EFFECT: Record<string, StatusLoopId> = {
+  Shield: 'shield',
+  Burn: 'burn',
+  Freeze: 'freeze',
+  Overdrive: 'overdrive',
+};
+
+/** Status loops heard during combat: union of both tops' active effects. */
+function collectStatusLoops(sim: BattleSimulationState): StatusLoopId[] {
+  const out = new Set<StatusLoopId>();
+  for (const s of sim.player.statuses) {
+    const id = STATUS_LOOP_BY_EFFECT[s.type];
+    if (id) out.add(id);
+  }
+  for (const s of sim.opponent.statuses) {
+    const id = STATUS_LOOP_BY_EFFECT[s.type];
+    if (id) out.add(id);
+  }
+  return [...out];
+}
 type ActiveModal =
   | 'none'
   | 'workshop'
@@ -1363,6 +1385,8 @@ export default function App() {
 
       if (state === 'replay') {
         soundEngine.updateSpinHum(false, 0, 0);
+        soundEngine.setStatusLoops([]);
+        soundEngine.setMenuMusic(false);
         soundEngine.setDynamicMusic(saveRef.current.settings.dynamicMusic, false, false);
         soundEngine.updateWeatherDynamics(dt, 1.05);
         return;
@@ -1370,9 +1394,12 @@ export default function App() {
 
       if (state !== 'playing' || !sim) {
         soundEngine.updateSpinHum(false, 0, 0);
+        soundEngine.setStatusLoops([]);
         soundEngine.setDynamicMusic(saveRef.current.settings.dynamicMusic, false, false);
+        soundEngine.setMenuMusic(saveRef.current.settings.dynamicMusic && state === 'title');
         return;
       }
+      soundEngine.setMenuMusic(false);
 
       // Optional Gamepad Polling during Launch & Live Combat
       if (saveRef.current.settings.gamepadEnabled && typeof navigator.getGamepads === 'function') {
@@ -1560,7 +1587,8 @@ export default function App() {
               false
             );
             scene.recordImpactScuff(ev.x, ev.z, -nz, nx, ev.intensity * 0.72, false, false);
-            soundEngine.playCollision(ev.intensity * 0.65, false);
+            if (ev.type === 'wallBounce') soundEngine.playWallImpact(ev.intensity);
+            else soundEngine.playPillarImpact(ev.intensity);
           } else if (ev.type === 'ability' || ev.type === 'bossPhase') {
             const hex = ev.colorHex ? parseInt(ev.colorHex.replace('#', ''), 16) : 0x38bdf8;
             scene.triggerClashEffects(
@@ -1581,7 +1609,10 @@ export default function App() {
                 ev.isCritical ? 'critical' : 'normal'
               );
             }
-            soundEngine.playAbility(Boolean(ev.isCritical) || ev.type === 'bossPhase');
+            soundEngine.playAbility(
+              Boolean(ev.isCritical) || ev.type === 'bossPhase',
+              ev.type === 'ability' ? ev.label : undefined
+            );
             if (ev.label) bannerRef.current = { text: ev.label, ttl: 1.8 };
           } else if (ev.type === 'teamSwitch') {
             scene.spawnBurstParticles(ev.x, ev.y, ev.z, 22, 0x38bdf8, 4.8);
@@ -1657,6 +1688,8 @@ export default function App() {
             ev.type === 'spinFinish' ||
             ev.type === 'criticalPhase'
           ) {
+            if (ev.type === 'ringOut') soundEngine.playRingOut();
+            else if (ev.type === 'spinFinish') soundEngine.playSpinOut();
             if (ev.label) bannerRef.current = { text: ev.label, ttl: 1.8 };
           }
         }
@@ -1677,6 +1710,7 @@ export default function App() {
       );
       soundEngine.setWeatherAmbiance(sim.weather, true);
       soundEngine.updateWeatherDynamics(dt, sim.phase === 'Critical' ? 1.4 : 1.0);
+      soundEngine.setStatusLoops(spinActive ? collectStatusLoops(sim) : []);
 
       if (sim.phase === 'Results') {
         combatPopupsRef.current = [];

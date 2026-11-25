@@ -1,4 +1,34 @@
 import { WeatherType } from '../domain/types';
+import {
+  LOAD_PRIORITY,
+  SOUND_GROUPS,
+  STATUS_LOOP_IDS,
+  SoundBus,
+  StatusLoopId,
+  abilitySoundKey,
+} from './audioManifest';
+
+const AUDIO_BASE = `${import.meta.env?.BASE_URL ?? '/'}audio/`;
+
+interface PlayOpts {
+  gain?: number;
+  rate?: number;
+  delay?: number;
+  loop?: boolean;
+  /** fade in seconds (loops) */
+  fadeIn?: number;
+}
+
+interface LoopVoice {
+  src: AudioBufferSourceNode;
+  gain: GainNode;
+}
+
+const WEATHER_BED: Partial<Record<WeatherType, string>> = {
+  LightRain: 'amb.rain',
+  DustStorm: 'amb.dust',
+  GaleWind: 'amb.gale',
+};
 
 class SpinSoundEngine {
   private ctx: AudioContext | null = null;
@@ -31,6 +61,24 @@ class SpinSoundEngine {
   private musicStep = 0;
   private musicIsCritical = false;
 
+  // Sampled audio (public/audio/*.ogg). Every public play* method tries the sample first
+  // and falls back to the original synth voice while files load or if decoding fails.
+  private sfxBus: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private ambBus: GainNode | null = null;
+  private buffers = new Map<string, AudioBuffer>();
+  private loadStarted = false;
+  private lastVariant = new Map<string, number>();
+  private lastPlayAt = new Map<string, number>();
+  private activeVoices = new Map<string, number>();
+  private menuMusic: LoopVoice | null = null;
+  private battleMusic: LoopVoice | null = null;
+  private criticalMusic: LoopVoice | null = null;
+  private criticalMix = 0;
+  private ambBed: { id: string; voice: LoopVoice } | null = null;
+  private statusLoops = new Map<StatusLoopId, LoopVoice>();
+  private menuMusicWanted = false;
+
   public unlock(): void {
     if (this.unlocked && this.ctx) {
       if (this.ctx.state === 'suspended') {
@@ -47,6 +95,16 @@ class SpinSoundEngine {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = this.muted ? 0 : this.volume;
       this.masterGain.connect(this.ctx.destination);
+
+      this.sfxBus = this.ctx.createGain();
+      this.sfxBus.gain.value = 1.0;
+      this.sfxBus.connect(this.masterGain);
+      this.musicBus = this.ctx.createGain();
+      this.musicBus.gain.value = 0.55;
+      this.musicBus.connect(this.masterGain);
+      this.ambBus = this.ctx.createGain();
+      this.ambBus.gain.value = 0.6;
+      this.ambBus.connect(this.masterGain);
 
       this.spinGain = this.ctx.createGain();
       this.spinGain.gain.value = 0;
@@ -114,6 +172,7 @@ class SpinSoundEngine {
       this.weatherNoiseSource.start();
 
       this.unlocked = true;
+      void this.loadSamples();
       if (this.weatherActive && !this.muted && this.currentWeather !== 'Clear') {
         this.applyWeatherParams(this.ctx.currentTime, this.currentWeather);
       }
@@ -129,6 +188,10 @@ class SpinSoundEngine {
     }
     if (muted) {
       this.stopMusicLoop();
+      this.stopSampleMusic(0.05);
+      this.stopMenuMusic(0.05);
+      this.stopAmbBed(0.05);
+      this.setStatusLoops([]);
       if (this.weatherGain && this.ctx) {
         this.weatherGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.03);
       }
@@ -228,7 +291,7 @@ class SpinSoundEngine {
     }
   }
 
-  public playDistantThunder(): void {
+  private synthDistantThunder(): void {
     if (!this.ctx || !this.masterGain || this.muted || this.ctx.state !== 'running') return;
     try {
       const now = this.ctx.currentTime;
@@ -259,6 +322,19 @@ class SpinSoundEngine {
   }
 
   public updateWeatherDynamics(dt: number, combatIntensity = 1.0): void {
+    if (this.ambBed && this.ctx && !this.muted && this.weatherActive) {
+      // Recorded bed: only lift it a little with combat tension and roll distant thunder.
+      const target = (SOUND_GROUPS[this.ambBed.id]?.gain ?? 0.9) * Math.max(0.85, Math.min(1.25, combatIntensity));
+      this.ambBed.voice.gain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.6);
+      if (this.currentWeather === 'LightRain') {
+        this.thunderTimer -= dt;
+        if (this.thunderTimer <= 0) {
+          this.playThunder();
+          this.thunderTimer = 16.0 + Math.random() * 22.0;
+        }
+      }
+      return;
+    }
     if (
       !this.weatherActive ||
       this.muted ||
@@ -341,7 +417,7 @@ class SpinSoundEngine {
         // Periodic distant atmospheric thunder rolls
         this.thunderTimer -= dt;
         if (this.thunderTimer <= 0) {
-          this.playDistantThunder();
+          this.playThunder();
           this.thunderTimer = 20.0 + Math.random() * 25.0;
         }
         break;
@@ -423,8 +499,24 @@ class SpinSoundEngine {
     const now = this.ctx.currentTime;
     if (!active || this.muted || weather === 'Clear') {
       this.weatherGain.gain.setTargetAtTime(0, now, 0.12);
+      this.stopAmbBed(0.8);
       return;
     }
+
+    const bedId = WEATHER_BED[weather];
+    if (bedId && this.has(bedId)) {
+      // recorded bed replaces the synthesized noise layer
+      this.weatherGain.gain.setTargetAtTime(0, now, 0.12);
+      if (!this.ambBed || this.ambBed.id !== bedId || forceApply) {
+        if (!this.ambBed || this.ambBed.id !== bedId) {
+          this.stopAmbBed(1.2);
+          const voice = this.startLoop(bedId, { fadeIn: 1.5 });
+          if (voice) this.ambBed = { id: bedId, voice };
+        }
+      }
+      return;
+    }
+    this.stopAmbBed(0.8);
 
     if (isChange) {
       this.weatherGustTime = 0;
@@ -435,7 +527,7 @@ class SpinSoundEngine {
     }
   }
 
-  public setDynamicMusic(enabled: boolean, active: boolean, isCritical: boolean): void {
+  private synthDynamicMusic(enabled: boolean, active: boolean, isCritical: boolean): void {
     this.musicEnabled = enabled;
     this.musicIsCritical = isCritical;
     if (!enabled || !active || this.muted || !this.ctx || !this.masterGain || document.hidden) {
@@ -519,7 +611,7 @@ class SpinSoundEngine {
     this.spinGain.gain.setTargetAtTime(0.035 + norm * 0.05, now, 0.08);
   }
 
-  public playLaunch(): void {
+  private synthLaunch(): void {
     if (!this.ctx || !this.masterGain || this.muted) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -535,7 +627,7 @@ class SpinSoundEngine {
     osc.stop(now + 0.35);
   }
 
-  public playLaunchSlam(power = 0.8): void {
+  private synthLaunchSlam(power = 0.8): void {
     if (!this.ctx || !this.masterGain || this.muted || this.ctx.state !== 'running') return;
     try {
       const now = this.ctx.currentTime;
@@ -619,7 +711,7 @@ class SpinSoundEngine {
     return buffer;
   }
 
-  public playCollision(intensity: number, isCritical = false): void {
+  private synthCollision(intensity: number, isCritical = false): void {
     if (!this.ctx || !this.masterGain || this.muted) return;
     const now = this.ctx.currentTime;
     const pitchVar = 0.92 + Math.random() * 0.16;
@@ -680,7 +772,7 @@ class SpinSoundEngine {
     punch.stop(now + 0.19);
   }
 
-  public playAbility(isUltimate = false): void {
+  private synthAbility(isUltimate = false): void {
     if (!this.ctx || !this.masterGain || this.muted) return;
     const now = this.ctx.currentTime;
     const notes = isUltimate ? [330, 440, 660, 880] : [392, 587];
@@ -716,7 +808,7 @@ class SpinSoundEngine {
     osc.stop(now + 0.05);
   }
 
-  public playBurst(): void {
+  private synthBurst(): void {
     if (!this.ctx || !this.masterGain || this.muted) return;
     const now = this.ctx.currentTime;
     [220, 440, 880, 1320].forEach((f, idx) => {
@@ -735,7 +827,7 @@ class SpinSoundEngine {
     });
   }
 
-  public playPerfectLaunch(): void {
+  private synthPerfectLaunch(): void {
     if (!this.ctx || !this.masterGain || this.muted) return;
     const now = this.ctx.currentTime;
     const notes = [523.25, 659.25, 783.99, 1046.5];
@@ -756,8 +848,7 @@ class SpinSoundEngine {
     });
   }
 
-  public playOutcome(won: boolean): void {
-    this.stopMusicLoop();
+  private synthOutcome(won: boolean): void {
     if (!this.ctx || !this.masterGain || this.muted) return;
     const now = this.ctx.currentTime;
     const seq = won ? [440, 554.37, 659.25, 880] : [392, 349.23, 293.66];
@@ -777,12 +868,346 @@ class SpinSoundEngine {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Sample bank
+  // ---------------------------------------------------------------------------
+
+  private async loadSamples(): Promise<void> {
+    if (this.loadStarted || !this.ctx) return;
+    this.loadStarted = true;
+    const files: string[] = [];
+    for (const g of LOAD_PRIORITY) files.push(...(SOUND_GROUPS[g]?.files ?? []));
+    let next = 0;
+    const worker = async () => {
+      while (next < files.length) {
+        const name = files[next++];
+        await this.loadOne(name);
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    // late-loaded beds/music: pick up whatever state the game is already in
+    if (this.weatherActive) this.setWeatherAmbiance(this.currentWeather, true, true);
+    if (this.menuMusicWanted) this.setMenuMusic(true);
+  }
+
+  private async loadOne(name: string): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx || this.buffers.has(name)) return;
+    try {
+      const res = await fetch(`${AUDIO_BASE}${name}.ogg`);
+      if (!res.ok) return;
+      const data = await res.arrayBuffer();
+      const buf = await new Promise<AudioBuffer>((resolve, reject) => {
+        const p = ctx.decodeAudioData(data, resolve, reject);
+        if (p && typeof (p as Promise<AudioBuffer>).then === 'function') {
+          (p as Promise<AudioBuffer>).then(resolve, reject);
+        }
+      });
+      if (this.ctx === ctx) this.buffers.set(name, buf);
+    } catch {
+      // Missing file or codec unsupported (e.g. old Safari without Vorbis): synth fallback stays.
+    }
+  }
+
+  /** true when at least one file of the group is decoded */
+  private has(group: string): boolean {
+    const g = SOUND_GROUPS[group];
+    return Boolean(g && g.files.some((f) => this.buffers.has(f)));
+  }
+
+  private busFor(bus: SoundBus): GainNode | null {
+    return bus === 'music' ? this.musicBus : bus === 'amb' ? this.ambBus : this.sfxBus;
+  }
+
+  private pickBuffer(group: string): AudioBuffer | null {
+    const g = SOUND_GROUPS[group];
+    if (!g) return null;
+    const ready = g.files.map((f, i) => [i, this.buffers.get(f)] as const).filter(([, b]) => b);
+    if (ready.length === 0) return null;
+    const last = this.lastVariant.get(group);
+    const pool = ready.length > 1 ? ready.filter(([i]) => i !== last) : ready;
+    const [idx, buf] = pool[Math.floor(Math.random() * pool.length)];
+    this.lastVariant.set(group, idx);
+    return buf ?? null;
+  }
+
+  private playSample(group: string, opts: PlayOpts = {}): LoopVoice | null {
+    const ctx = this.ctx;
+    const g = SOUND_GROUPS[group];
+    if (!ctx || !g || this.muted || ctx.state === 'closed') return null;
+    const bus = this.busFor(g.bus);
+    if (!bus) return null;
+    const now = ctx.currentTime;
+    if (!opts.loop) {
+      if (g.minInterval && now - (this.lastPlayAt.get(group) ?? -1) < g.minInterval) return null;
+      if (g.maxVoices && (this.activeVoices.get(group) ?? 0) >= g.maxVoices) return null;
+    }
+    const buf = this.pickBuffer(group);
+    if (!buf) return null;
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = Boolean(opts.loop);
+      const jitter = g.pitchJitter ?? 0;
+      src.playbackRate.value = (opts.rate ?? 1) * (1 + (Math.random() * 2 - 1) * jitter);
+      const gain = ctx.createGain();
+      const level = g.gain * (opts.gain ?? 1);
+      const t = now + (opts.delay ?? 0);
+      if (opts.fadeIn) {
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(level, t + opts.fadeIn);
+      } else {
+        gain.gain.value = level;
+      }
+      src.connect(gain);
+      gain.connect(bus);
+      src.start(t);
+      if (!opts.loop) {
+        this.lastPlayAt.set(group, now);
+        this.activeVoices.set(group, (this.activeVoices.get(group) ?? 0) + 1);
+        src.onended = () => {
+          this.activeVoices.set(group, Math.max(0, (this.activeVoices.get(group) ?? 1) - 1));
+          try {
+            gain.disconnect();
+          } catch {
+            // already gone
+          }
+        };
+      }
+      return { src, gain };
+    } catch {
+      return null;
+    }
+  }
+
+  private startLoop(group: string, opts: PlayOpts = {}): LoopVoice | null {
+    return this.playSample(group, { ...opts, loop: true });
+  }
+
+  private stopLoop(voice: LoopVoice | null, fade = 0.4): void {
+    if (!voice || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    try {
+      voice.gain.gain.cancelScheduledValues(now);
+      voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
+      voice.gain.gain.linearRampToValueAtTime(0, now + Math.max(0.01, fade));
+      voice.src.stop(now + Math.max(0.01, fade) + 0.02);
+    } catch {
+      // already stopped
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Music: menu loop, battle loop + phase-locked Critical layer, stingers
+  // ---------------------------------------------------------------------------
+
+  public setMenuMusic(active: boolean): void {
+    this.menuMusicWanted = active;
+    if (!active || this.muted || !this.musicEnabled || !this.ctx) {
+      this.stopMenuMusic(0.8);
+      return;
+    }
+    if (this.menuMusic || !this.has('music.menu') || this.ctx.state !== 'running') return;
+    this.menuMusic = this.startLoop('music.menu', { fadeIn: 1.2 });
+  }
+
+  private stopMenuMusic(fade: number): void {
+    if (!this.menuMusic) return;
+    this.stopLoop(this.menuMusic, fade);
+    this.menuMusic = null;
+  }
+
+  public setDynamicMusic(enabled: boolean, active: boolean, isCritical: boolean): void {
+    this.musicEnabled = enabled;
+    const sampled = this.has('music.battle');
+    if (!sampled) {
+      this.synthDynamicMusic(enabled, active, isCritical);
+      return;
+    }
+    this.stopMusicLoop();
+    this.musicIsCritical = isCritical;
+    if (!enabled || !active || this.muted || !this.ctx || document.hidden) {
+      this.stopSampleMusic(0.6);
+      return;
+    }
+    if (!this.battleMusic) {
+      this.stopMenuMusic(0.4);
+      const ctx = this.ctx;
+      // both loops start on the same sample so the Critical layer (exactly half the
+      // battle loop, same tempo and key) stays bar-aligned forever
+      const when = 0.06;
+      this.battleMusic = this.startLoop('music.battle', { delay: when, fadeIn: 0.25 });
+      if (this.has('music.critical')) {
+        this.criticalMusic = this.playSample('music.critical', { loop: true, delay: when, gain: 0 });
+        if (this.criticalMusic) this.criticalMusic.gain.gain.setValueAtTime(0, ctx.currentTime);
+      }
+      this.criticalMix = 0;
+    }
+    const mix = isCritical ? 1 : 0;
+    if (mix !== this.criticalMix && this.ctx) {
+      const now = this.ctx.currentTime;
+      const base = SOUND_GROUPS['music.battle'].gain;
+      const crit = SOUND_GROUPS['music.critical'].gain;
+      this.criticalMusic?.gain.gain.setTargetAtTime(mix * crit, now, 0.35);
+      // the layer is a full arrangement, so duck the base under it instead of stacking
+      this.battleMusic?.gain.gain.setTargetAtTime(base * (mix ? 0.45 : 1), now, 0.35);
+      if (mix) this.playCriticalRiser();
+      this.criticalMix = mix;
+    }
+  }
+
+  private stopSampleMusic(fade: number): void {
+    this.stopLoop(this.battleMusic, fade);
+    this.stopLoop(this.criticalMusic, fade);
+    this.battleMusic = null;
+    this.criticalMusic = null;
+    this.criticalMix = 0;
+  }
+
+  public playOutcome(won: boolean): void {
+    this.stopMusicLoop();
+    this.stopSampleMusic(0.35);
+    if (!this.playSample(won ? 'stinger.win' : 'stinger.lose', { delay: 0.12 })) {
+      this.synthOutcome(won);
+    }
+  }
+
+  /** Short synthesized riser when the match enters Critical (kept as synth by design). */
+  public playCriticalRiser(): void {
+    if (!this.ctx || !this.sfxBus || this.muted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const filt = this.ctx.createBiquadFilter();
+      const g = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.9);
+      filt.type = 'bandpass';
+      filt.Q.value = 3;
+      filt.frequency.setValueAtTime(600, now);
+      filt.frequency.exponentialRampToValueAtTime(3200, now + 0.9);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.09, now + 0.75);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+      osc.connect(filt);
+      filt.connect(g);
+      g.connect(this.sfxBus);
+      osc.start(now);
+      osc.stop(now + 1.05);
+    } catch {
+      // Audio context busy
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Weather
+  // ---------------------------------------------------------------------------
+
+  private stopAmbBed(fade: number): void {
+    if (!this.ambBed) return;
+    this.stopLoop(this.ambBed.voice, fade);
+    this.ambBed = null;
+  }
+
+  public playThunder(): void {
+    if (!this.playSample('amb.thunder', { gain: 0.8 + Math.random() * 0.4 })) {
+      this.synthDistantThunder();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Status loops (shield / burn / freeze / overdrive)
+  // ---------------------------------------------------------------------------
+
+  public setStatusLoops(active: Iterable<StatusLoopId>): void {
+    const want = new Set(this.muted ? [] : active);
+    for (const id of STATUS_LOOP_IDS) {
+      const voice = this.statusLoops.get(id);
+      if (want.has(id) && !voice) {
+        const v = this.startLoop(`loop.${id}`, { fadeIn: 0.25 });
+        if (v) this.statusLoops.set(id, v);
+      } else if (!want.has(id) && voice) {
+        this.stopLoop(voice, 0.3);
+        this.statusLoops.delete(id);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gameplay one-shots
+  // ---------------------------------------------------------------------------
+
+  public playCollision(intensity: number, isCritical = false): void {
+    const i = Math.max(0.2, Math.min(1.6, intensity));
+    const group = isCritical ? 'impact.top.critical' : i >= 0.75 ? 'impact.top.heavy' : 'impact.top.light';
+    const gain = isCritical ? 1 : group === 'impact.top.heavy' ? 0.7 + 0.3 * Math.min(1, (i - 0.75) / 0.6) : 0.55 + 0.45 * (i / 0.75);
+    if (this.playSample(group, { gain })) return;
+    if (!this.has(group)) this.synthCollision(intensity, isCritical);
+  }
+
+  public playWallImpact(intensity: number): void {
+    const i = Math.max(0.2, Math.min(1.4, intensity));
+    if (this.playSample('impact.wall', { gain: 0.55 + 0.45 * Math.min(1, i) })) return;
+    if (!this.has('impact.wall')) this.synthCollision(intensity * 0.65, false);
+  }
+
+  public playPillarImpact(intensity: number): void {
+    const i = Math.max(0.2, Math.min(1.4, intensity));
+    if (this.playSample('impact.pillar', { gain: 0.55 + 0.45 * Math.min(1, i) })) return;
+    if (!this.has('impact.pillar')) this.synthCollision(intensity * 0.65, false);
+  }
+
+  /** label = ability display name or id ("Flame Burst", "ability.fire.flame_burst"). */
+  public playAbility(isUltimate = false, label?: string): void {
+    const key = abilitySoundKey(label);
+    if (key && this.playSample(key)) return;
+    if (key && this.has(key)) return; // voice-limited, not missing
+    this.synthAbility(isUltimate);
+  }
+
+  public playBurst(): void {
+    const ok = this.playSample('finish.burst');
+    // debris is a separate layer so the pieces scatter on top of the blast
+    this.playSample('finish.debris', { delay: 0.07 });
+    if (!ok) this.synthBurst();
+  }
+
+  public playRingOut(): void {
+    if (!this.playSample('finish.ringout')) this.synthBurst();
+  }
+
+  public playSpinOut(): void {
+    this.playSample('finish.spinout');
+  }
+
+  public playLaunch(): void {
+    if (!this.playSample('launch.rip')) this.synthLaunch();
+  }
+
+  public playLaunchSlam(power = 0.8): void {
+    const p = Math.max(0.3, Math.min(1.3, power));
+    if (!this.playSample('launch.land', { gain: 0.6 + 0.4 * Math.min(1, p) })) this.synthLaunchSlam(power);
+  }
+
+  public playPerfectLaunch(): void {
+    if (!this.playSample('launch.perfect')) this.synthPerfectLaunch();
+  }
+
   public get isAudioInitialized(): boolean {
     return this.unlocked && this.ctx !== null;
   }
 
   public dispose(): void {
     this.stopMusicLoop();
+    this.stopSampleMusic(0.01);
+    this.stopMenuMusic(0.01);
+    this.stopAmbBed(0.01);
+    this.setStatusLoops([]);
+    this.buffers.clear();
+    this.loadStarted = false;
+    this.activeVoices.clear();
+    this.lastPlayAt.clear();
 
     const stopAndDisconnect = (node: AudioScheduledSourceNode | null) => {
       if (!node) return;
@@ -817,7 +1242,13 @@ class SpinSoundEngine {
     disconnectNode(this.weatherLfoGain);
     disconnectNode(this.weatherFilter);
     disconnectNode(this.weatherGain);
+    disconnectNode(this.sfxBus);
+    disconnectNode(this.musicBus);
+    disconnectNode(this.ambBus);
     disconnectNode(this.masterGain);
+    this.sfxBus = null;
+    this.musicBus = null;
+    this.ambBus = null;
 
     this.spinOsc1 = null;
     this.spinOsc2 = null;

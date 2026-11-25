@@ -71,6 +71,15 @@ export default defineConfig(() => {
               urlPattern: ({url}) => url.pathname.startsWith('/api/'),
               handler: 'NetworkOnly',
             },
+            {
+              // Game audio (public/audio/*.ogg): fetched on first unlock, then served offline.
+              urlPattern: ({url}) => url.pathname.endsWith('.ogg'),
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'audio-cache',
+                expiration: {maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 60},
+              },
+            },
           ],
         },
       }),
