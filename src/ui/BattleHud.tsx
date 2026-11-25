@@ -1131,7 +1131,7 @@ export const BattleHud: React.FC<BattleHudProps> = ({
               LET IT SPIN! [{keyBindings.launch === ' ' ? 'SPACE' : keyBindings.launch.toUpperCase()}]
             </button>
           </div>
-        ) : (
+        ) : hud.phase === 'Combat' || hud.phase === 'Critical' ? (
           <div className="w-full flex items-end justify-between gap-2 pointer-events-none">
             {/* Bottom-Left Anchor: Training Debug Controls + Quick Swap + 3v1 Tag Team */}
             <div className="flex flex-col items-start gap-2 max-w-[min(460px,54vw)]">
@@ -1437,7 +1437,7 @@ export const BattleHud: React.FC<BattleHudProps> = ({
               })}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

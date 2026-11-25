@@ -104,6 +104,7 @@ import {
 import { soundEngine } from './audio/soundEngine';
 import { TitleOverlay } from './ui/TitleOverlay';
 import { BattleHud, CombatDamagePopup, HudSnapshot } from './ui/BattleHud';
+import { ReplayOverlay } from './ui/ReplayOverlay';
 import { WorkshopModal } from './ui/WorkshopModal';
 import { CollectionModal } from './ui/CollectionModal';
 import { TournamentModal } from './ui/TournamentModal';
@@ -354,6 +355,8 @@ export default function App() {
   const launchPhaseClockRef = useRef(0);
   const launchOscValueRef = useRef(0.5);
   const bannerRef = useRef<{ text: string; ttl: number } | null>(null);
+  // Replay impact SFX are held back until the win/lose stinger has finished.
+  const replaySfxHoldUntilRef = useRef(0);
   const [combatPopups, setCombatPopups] = useState<CombatDamagePopup[]>([]);
   const combatPopupsRef = useRef<{ popup: CombatDamagePopup; createdAtMs: number }[]>([]);
   const popupSeqRef = useRef(0);
@@ -934,6 +937,7 @@ export default function App() {
           scene.setReplayClip(summary.highlights, {
             onTelemetry: (tel) => setReplayTelemetry(tel),
             onImpactSfx: (kind, intensity) => {
+              if (performance.now() < replaySfxHoldUntilRef.current) return;
               if (kind === 'burst') soundEngine.playBurst();
               else soundEngine.playCollision(intensity, intensity > 1.0);
             },
@@ -1018,6 +1022,7 @@ export default function App() {
 
       soundEngine.updateSpinHum(false, 0, 0);
       soundEngine.playOutcome(won);
+      replaySfxHoldUntilRef.current = performance.now() + 1200;
 
       if (!rewards.alreadyClaimed) {
         updateSave((prev) => {
@@ -1248,6 +1253,7 @@ export default function App() {
         scene.setReplayClip(summary.highlights, {
           onTelemetry: (tel) => setReplayTelemetry(tel),
           onImpactSfx: (kind, intensity) => {
+            if (performance.now() < replaySfxHoldUntilRef.current) return;
             if (kind === 'burst') soundEngine.playBurst();
             else soundEngine.playCollision(intensity, intensity > 1.0);
           },
@@ -1634,7 +1640,8 @@ export default function App() {
       if (sim.phase === 'Results') {
         combatPopupsRef.current = [];
         setCombatPopups([]);
-        setHud(createHudSnapshot(sim, bannerRef.current?.text ?? null));
+        bannerRef.current = null;
+        setHud(createHudSnapshot(sim, null));
         finalizeBattle(sim);
         return;
       }
@@ -3315,12 +3322,17 @@ export default function App() {
       )}
 
       {/* Active Battle HUD (Live Combat, Paused, and Cinematic Replay) */}
-      {(shellState === 'playing' || shellState === 'paused' || shellState === 'replay') && hud && (
+      {/* Replay: full-screen cinematic only, no battle HUD */}
+      {shellState === 'replay' && (
+        <ReplayOverlay telemetry={replayTelemetry} onSkip={() => setShellState('gameover')} />
+      )}
+
+      {(shellState === 'playing' || shellState === 'paused') && hud && (
         <BattleHud
           hud={hud}
           playerAppearance={save.character.appearance}
           combatPopups={combatPopups}
-          isReplay={shellState === 'replay'}
+          isReplay={false}
           replayTelemetry={replayTelemetry}
           onSkipReplay={() => setShellState('gameover')}
           launchMeterValue={launchMeter}
