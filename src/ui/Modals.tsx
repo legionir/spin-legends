@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { DEBUG_TOOLS_ALLOWED } from '../infrastructure/buildFlags';
 import { motion } from 'motion/react';
 import {
   Play,
@@ -1173,6 +1174,8 @@ export const SettingsModal: React.FC<{
               <span>{save.settings.gamepadEnabled ? 'ON' : 'OFF'}</span>
             </button>
 
+            {DEBUG_TOOLS_ALLOWED && (
+              <>
             <button
               type="button"
               onClick={onToggleDebugMode}
@@ -1203,6 +1206,8 @@ export const SettingsModal: React.FC<{
               </span>
               <span>{save.settings.showDiagnostics || urlDebugForced ? 'ON' : 'OFF'}</span>
             </button>
+              </>
+            )}
 
             <button
               type="button"

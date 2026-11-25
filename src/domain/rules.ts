@@ -1246,7 +1246,11 @@ export function createDefaultSaveData(): PlayerSaveData {
     missionProgress: initialMissions,
     dailyMissionResetKey: getCurrentDailyResetKey(),
     settings: {
-      graphicsQuality: 'High',
+      // Phones/tablets default to Medium (no GTAO/bloom composer); desktops keep High.
+      graphicsQuality:
+        typeof window !== 'undefined' && Boolean(window.matchMedia?.('(pointer: coarse)').matches)
+          ? 'Medium'
+          : 'High',
       masterVolume: 0.7,
       muted: false,
       cameraSensitivity: 1.0,

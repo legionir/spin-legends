@@ -1743,7 +1743,8 @@ export class ArenaSceneController {
   private onLaunchSlamSfx?: (power: number) => void;
   private onSelectWorkshopPart?: (category: ComponentCategory) => void;
 
-  private resizeObserver: ResizeObserver;
+  private resizeObserver: ResizeObserver | null = null;
+  private lastQualityChangeMs = 0;
   private activePointers = new Map<
     number,
     { x: number; y: number; downX: number; downY: number; mode: 'aim' | 'orbit'; pointerType: string }
@@ -1775,7 +1776,6 @@ export class ArenaSceneController {
     this.isSoftwareGl = detectSoftwareWebGL();
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(44, 16 / 9, 0.1, 120);
-    this.resizeObserver = new ResizeObserver(() => this.handleResize());
 
     this.heatmapTex = new THREE.DataTexture(
       this.heatmapPixels,
@@ -3340,6 +3340,10 @@ export class ArenaSceneController {
         samples: 12,
       });
       this.composer.addPass(this.gtaoPass);
+      // GTAO (16 samples + denoise) is too heavy for phone GPUs: keep it off on touch devices.
+      this.gtaoPass.enabled = !(
+        typeof window !== 'undefined' && Boolean(window.matchMedia?.('(pointer: coarse)').matches)
+      );
 
       this.bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.32, 0.5, 0.9);
       this.composer.addPass(this.bloomPass);
@@ -3386,6 +3390,7 @@ export class ArenaSceneController {
     } else {
       this.qualityAutoAdjusted = quality !== this.userQualityCap;
     }
+    if (isAutoAdjustment) this.lastQualityChangeMs = performance.now();
     this.currentQuality = quality;
     const isTouchDevice =
       typeof window !== 'undefined' &&
@@ -8172,21 +8177,32 @@ export class ArenaSceneController {
       }
 
       // 3-tier bidirectional FPS Adaptive Quality check every 2.5s on non-software WebGL
-      if (!this.isSoftwareGl) {
+      // Frames with a huge gap (resume from background, tab switch) are ignored and
+      // reset the window so they can't fake a low FPS. Changes have a cooldown so
+      // quality doesn't flip back and forth (each switch rebuilds GPU resources).
+      if (!this.isSoftwareGl && rawDt > 0.25) {
+        this.fpsAccumTime = 0;
+        this.fpsFrames = 0;
+        this.highFpsStreak = 0;
+      } else if (!this.isSoftwareGl) {
         this.fpsAccumTime += rawDt;
         this.fpsFrames += 1;
+        const nowMs = performance.now();
+        const sinceChange = nowMs - this.lastQualityChangeMs;
         if (this.fpsAccumTime >= 2.5) {
           const avgFps = this.fpsFrames / this.fpsAccumTime;
-          if (avgFps < 28) {
+          if (sinceChange < 8000) {
+            // cooling down after the last switch
+          } else if (avgFps < 26) {
             this.highFpsStreak = 0;
             if (this.currentQuality === 'High') {
               this.applyQuality('Medium', true);
             } else if (this.currentQuality === 'Medium') {
               this.applyQuality('Low', true);
             }
-          } else if (avgFps >= 52 && this.currentQuality !== this.userQualityCap) {
+          } else if (avgFps >= 55 && this.currentQuality !== this.userQualityCap) {
             this.highFpsStreak += 1;
-            if (this.highFpsStreak >= 2) {
+            if (this.highFpsStreak >= 4 && sinceChange >= 30000) {
               this.highFpsStreak = 0;
               if (this.currentQuality === 'Low') {
                 this.applyQuality('Medium', true);
@@ -8238,7 +8254,7 @@ export class ArenaSceneController {
     cancelAnimationFrame(this.frameId);
     clearTimeout(this.frameId);
     this.unbindPointer();
-    this.resizeObserver.disconnect();
+    this.resizeObserver?.disconnect();
     if (this.initFailed || !this.renderer) return;
     this.clearEjectedParts();
     this.disposeComposer();
@@ -8316,6 +8332,8 @@ export class ArenaSceneController {
     }
     if (this.stadiumGroup) disposeObject3D(this.stadiumGroup);
     this.renderer.dispose();
+    // Release the GL context right away: Android WebViews cap live contexts.
+    this.renderer.forceContextLoss();
     if (this.renderer.domElement.parentElement === this.container) {
       this.container.removeChild(this.renderer.domElement);
     }

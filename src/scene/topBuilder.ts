@@ -147,8 +147,12 @@ function getTopPbrMaps(maxAnisotropy = 4): TopPbrMaps | null {
         bundle.normalMap.anisotropy = aniso;
         bundle.roughnessMap.anisotropy = aniso;
         bundle.aoMap.anisotropy = aniso;
+        bundle.normalMap.needsUpdate = true;
+        bundle.roughnessMap.needsUpdate = true;
+        bundle.aoMap.needsUpdate = true;
         if (bundle.clearcoatRoughnessMap) {
           bundle.clearcoatRoughnessMap.anisotropy = aniso;
+          bundle.clearcoatRoughnessMap.needsUpdate = true;
         }
       }
     }

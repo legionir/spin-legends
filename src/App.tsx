@@ -105,6 +105,7 @@ import { soundEngine } from './audio/soundEngine';
 import { TitleOverlay } from './ui/TitleOverlay';
 import { BattleHud, CombatDamagePopup, HudSnapshot } from './ui/BattleHud';
 import { ReplayOverlay } from './ui/ReplayOverlay';
+import { DEBUG_TOOLS_ALLOWED } from './infrastructure/buildFlags';
 import { WorkshopModal } from './ui/WorkshopModal';
 import { CollectionModal } from './ui/CollectionModal';
 import { TournamentModal } from './ui/TournamentModal';
@@ -289,12 +290,20 @@ export default function App() {
   const sceneRef = useRef<ArenaSceneController | null>(null);
 
   const [urlDebugForced] = useState(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1'
+    () =>
+      DEBUG_TOOLS_ALLOWED &&
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('debug') === '1'
   );
 
   const [save, setSave] = useState<PlayerSaveData>(() => createDefaultSaveData());
   const saveRef = useRef<PlayerSaveData>(save);
   const [saveLoaded, setSaveLoaded] = useState(false);
+  // Until the persisted save has loaded, edits are queued (not written) so the
+  // default save can never overwrite the real one.
+  const saveLoadedRef = useRef(false);
+  const pendingSaveUpdatersRef = useRef<Array<(prev: PlayerSaveData) => PlayerSaveData>>([]);
+  const saveTimerRef = useRef<number | null>(null);
 
   const [shellState, setShellState] = useState<AppShellState>('title');
   const shellStateRef = useRef<AppShellState>('title');
@@ -424,17 +433,49 @@ export default function App() {
     [save.missionProgress]
   );
 
-  const updateSave = useCallback((updater: (prev: PlayerSaveData) => PlayerSaveData) => {
-    setSave((prev) => {
-      const next = updater(prev);
-      saveRef.current = next;
-      void savePlayerData(next).then(() => {
-        const st = getStorageStatus();
-        setStorageWarning(st.degraded ? st.reason : null);
-      });
-      return next;
+  const flushSave = useCallback(() => {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    if (!saveLoadedRef.current) return;
+    void savePlayerData(saveRef.current).then(() => {
+      const st = getStorageStatus();
+      setStorageWarning(st.degraded ? st.reason : null);
     });
   }, []);
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(flushSave, 300);
+  }, [flushSave]);
+
+  const updateSave = useCallback(
+    (updater: (prev: PlayerSaveData) => PlayerSaveData) => {
+      // Side effects stay outside React's setState updater (it may run twice).
+      const next = updater(saveRef.current);
+      saveRef.current = next;
+      setSave(next);
+      if (!saveLoadedRef.current) {
+        pendingSaveUpdatersRef.current.push(updater);
+        return;
+      }
+      scheduleSave();
+    },
+    [scheduleSave]
+  );
+
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flushSave();
+    };
+    window.addEventListener('pagehide', flushSave);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flushSave);
+      document.removeEventListener('visibilitychange', onHide);
+    };
+  }, [flushSave]);
 
   useEffect(() => {
     document.body.dataset.state = shellState;
@@ -1686,11 +1727,24 @@ export default function App() {
       Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
     let cancelled = false;
-    void loadPlayerSave().then((loaded) => {
+    void loadPlayerSave().then((loadedRaw) => {
       if (cancelled) return;
+      // Replay any edits made before the load finished on top of the real save.
+      let loaded = loadedRaw;
+      const pending = pendingSaveUpdatersRef.current;
+      pendingSaveUpdatersRef.current = [];
+      for (const fn of pending) loaded = fn(loaded);
+      if (!DEBUG_TOOLS_ALLOWED) {
+        loaded = {
+          ...loaded,
+          settings: { ...loaded.settings, debugMode: false, showDiagnostics: false },
+        };
+      }
+      saveLoadedRef.current = true;
       saveRef.current = loaded;
       setSave(loaded);
       setSaveLoaded(true);
+      if (pending.length > 0) void savePlayerData(loaded);
       const st = getStorageStatus();
       setStorageWarning(st.degraded ? st.reason : null);
 
