@@ -3,6 +3,16 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App.tsx';
 import { ErrorBoundary } from './ui/ErrorBoundary.tsx';
 import { soundEngine } from './audio/soundEngine.ts';
+// Fonts are bundled (no Google Fonts request): latin subsets, only the weights in use.
+import '@fontsource/chakra-petch/latin-600.css';
+import '@fontsource/chakra-petch/latin-700.css';
+import '@fontsource/chakra-petch/latin-700-italic.css';
+import '@fontsource/exo-2/latin-500.css';
+import '@fontsource/exo-2/latin-600.css';
+import '@fontsource/exo-2/latin-700.css';
+import '@fontsource/exo-2/latin-800.css';
+import '@fontsource/jetbrains-mono/latin-500.css';
+import '@fontsource/jetbrains-mono/latin-700.css';
 import './index.css';
 
 if ('serviceWorker' in navigator) {

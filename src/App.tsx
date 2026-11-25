@@ -3263,7 +3263,7 @@ export default function App() {
       {webglInitError && (
         <div
           role="alert"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/92"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sl-safe-inset bg-slate-950/92"
         >
           <div className="w-full max-w-md p-6 rounded-xl border border-rose-500/60 bg-slate-900 text-center space-y-4 shadow-2xl">
             <h2 className="text-lg font-black text-rose-300">3D Graphics Context Unavailable</h2>
@@ -3285,7 +3285,8 @@ export default function App() {
       {!webglInitError && webglContextLost && (
         <div
           role="status"
-          className="fixed top-3 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg border border-amber-400 bg-slate-950/95 text-amber-200 text-xs font-bold flex items-center gap-2.5 shadow-xl"
+          className="fixed left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-2rem)] px-4 py-2 rounded-lg border border-amber-400 bg-slate-950/95 text-amber-200 text-xs font-bold flex flex-wrap items-center justify-center gap-2.5 shadow-xl"
+          style={{ top: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
         >
           <span>GPU graphics context lost — recovering automatically...</span>
           <button
@@ -3298,14 +3299,14 @@ export default function App() {
                 setSceneRecoveryKey((k) => k + 1);
               }
             }}
-            className="px-2.5 py-1 rounded bg-sky-400 text-slate-950 font-extrabold cursor-pointer"
+            className="min-h-[40px] px-3.5 py-2 rounded bg-sky-400 text-slate-950 font-extrabold cursor-pointer"
           >
             Restore 3D Scene
           </button>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-2.5 py-1 rounded bg-amber-400 text-slate-950 font-extrabold cursor-pointer"
+            className="min-h-[40px] px-3.5 py-2 rounded bg-amber-400 text-slate-950 font-extrabold cursor-pointer"
           >
             Reload
           </button>

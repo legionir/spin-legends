@@ -16,7 +16,7 @@ export const MissionsModal: React.FC<MissionsModalProps> = ({
 }) => {
   return (
     <div
-      className="fixed inset-0 z-30 flex items-center justify-center p-4 backdrop-blur-[6px]"
+      className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-4 sl-safe-inset backdrop-blur-[6px]"
       style={{ backgroundColor: 'rgba(2, 6, 23, 0.68)' }}
     >
       <div

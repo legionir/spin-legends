@@ -73,7 +73,7 @@ export const CollectionModal: React.FC<CollectionModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-center justify-center p-4 backdrop-blur-[6px]"
+      className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-4 sl-safe-inset backdrop-blur-[6px]"
       style={{ backgroundColor: 'rgba(2, 6, 23, 0.66)' }}
     >
       <div className="sl-panel-modal w-full max-w-4xl max-h-[90vh] rounded-2xl flex flex-col overflow-hidden">

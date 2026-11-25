@@ -3945,14 +3945,15 @@ export class ArenaSceneController {
       sizeMult: 1.35,
     });
     this.spawnShockwave(x, y, z, 0xfacc15, 3.8, 0.34);
+    const flashScale = this.reducedMotion ? 0.3 : 1.0;
     this.clashLight.position.set(x, y + 0.55, z);
     this.clashLight.color.setHex(0xfde047);
-    this.clashLightIntensity = 6.4;
+    this.clashLightIntensity = 6.4 * flashScale;
     this.clashLight.intensity = this.clashLightIntensity;
     this.flashColorHex = 0xfacc15;
     this.flashMaxDuration = 0.24;
     this.flashTimer = 0.24;
-    this.flashPeakIntensity = 0.9;
+    this.flashPeakIntensity = 0.9 * flashScale;
   }
 
   private emitSparkParticle(params: {

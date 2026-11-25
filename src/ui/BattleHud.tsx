@@ -7,7 +7,7 @@ import {
   Shield,
   Flame,
   Sparkles,
-  Camera,
+  SwitchCamera,
   Bug,
   Crosshair,
   Repeat,
@@ -949,7 +949,7 @@ export const BattleHud: React.FC<BattleHudProps> = ({
                   Skip
                 </button>
               )
-            ) : (
+            ) : hud.isSpectating ? null : (
               <button
                 type="button"
                 tabIndex={-1}
@@ -975,6 +975,7 @@ export const BattleHud: React.FC<BattleHudProps> = ({
             >
               {muted ? <VolumeX className="w-4 h-4 text-rose-300" /> : <Volume2 className="w-4 h-4 text-sky-300" />}
             </button>
+            {!hud.isSpectating && (
             <button
               type="button"
               tabIndex={-1}
@@ -986,8 +987,9 @@ export const BattleHud: React.FC<BattleHudProps> = ({
               aria-label="Cycle camera angle"
               className="sl-btn-3d sl-btn-3d-sm sl-btn-3d-slate sl-ls-hud-util-btn w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center cursor-pointer"
             >
-              <Camera className="w-4 h-4 text-amber-300" />
+              <SwitchCamera className="w-4 h-4 text-amber-300" />
             </button>
+            )}
           </div>
         </div>
       </div>

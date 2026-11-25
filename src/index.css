@@ -187,12 +187,15 @@
   pointer-events: none;
 }
 
-.sl-btn-3d:not(:disabled):hover::before {
-  transform: translateX(115%);
-}
+/* Hover effects only on devices that truly hover (avoids sticky highlight after a tap). */
+@media (hover: hover) {
+  .sl-btn-3d:not(:disabled):hover::before {
+    transform: translateX(115%);
+  }
 
-.sl-btn-3d:not(:disabled):hover {
-  filter: brightness(1.08);
+  .sl-btn-3d:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
 }
 
 .sl-btn-3d:not(:disabled):active {
@@ -275,13 +278,15 @@
     inset 0 1px 0 rgba(241, 245, 249, 0.18),
     inset 0 -1px 0 rgba(2, 6, 23, 0.7);
 }
-.sl-btn-3d-slate:not(:disabled):hover {
-  color: #ffffff;
-  border-color: rgba(56, 189, 248, 0.65);
-  box-shadow:
-    0 3px 0 #040711,
-    0 10px 22px rgba(14, 165, 233, 0.16),
-    inset 0 1px 0 rgba(248, 250, 252, 0.25);
+@media (hover: hover) {
+  .sl-btn-3d-slate:not(:disabled):hover {
+    color: #ffffff;
+    border-color: rgba(56, 189, 248, 0.65);
+    box-shadow:
+      0 3px 0 #040711,
+      0 10px 22px rgba(14, 165, 233, 0.16),
+      inset 0 1px 0 rgba(248, 250, 252, 0.25);
+  }
 }
 .sl-btn-3d-slate:not(:disabled):active {
   box-shadow:
@@ -471,9 +476,11 @@
   transform: skewX(12deg);
 }
 
-.sl-skew-banner:not(:disabled):hover {
-  transform: skewX(-12deg) translateX(-5px);
-  filter: brightness(1.1);
+@media (hover: hover) {
+  .sl-skew-banner:not(:disabled):hover {
+    transform: skewX(-12deg) translateX(-5px);
+    filter: brightness(1.1);
+  }
 }
 
 .sl-skew-banner:not(:disabled):active {
@@ -613,7 +620,9 @@
   }
 
   .sl-panel-modal {
-    max-height: calc(100dvh - 0.85rem) !important;
+    max-height: calc(
+      100dvh - 0.85rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+    ) !important;
   }
 
   .sl-ls-modal-header {

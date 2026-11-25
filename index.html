@@ -9,12 +9,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%icon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700&family=Exo+2:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
-      rel="stylesheet"
-    />
+    <style>
+      /* Boot screen: shown until React mounts (replaces the black screen). */
+      html, body { margin: 0; background: #070b14; }
+      #sl-boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(ellipse at center, #10203a 0%, #070b14 70%); color: #e2e8f0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; z-index: 9999; }
+      #sl-boot .sl-boot-top { width: 64px; height: 64px; border-radius: 50%; border: 4px solid rgba(56, 189, 248, 0.25); border-top-color: #38bdf8; border-right-color: #facc15; animation: sl-boot-spin 0.8s linear infinite; }
+      #sl-boot .sl-boot-title { font-weight: 800; letter-spacing: 0.32em; font-size: 15px; text-transform: uppercase; }
+      #sl-boot .sl-boot-sub { font-size: 11px; letter-spacing: 0.18em; color: #64748b; text-transform: uppercase; }
+      @keyframes sl-boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #sl-boot .sl-boot-top { animation-duration: 2.4s; } }
+    </style>
     <title>Spin Legends — 3D Strategic Arena Combat</title>
     <meta name="description" content="3D Physics-Driven Strategic Arena Combat with customizable mechanical spinning tops, 8 elemental abilities, 6 arenas, and tournament progression." />
     <meta property="og:title" content="Spin Legends — 3D Strategic Arena Combat" />
@@ -23,7 +27,13 @@
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="sl-boot" role="status" aria-live="polite">
+        <div class="sl-boot-top"></div>
+        <div class="sl-boot-title">Spin Legends</div>
+        <div class="sl-boot-sub">Loading arena…</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
