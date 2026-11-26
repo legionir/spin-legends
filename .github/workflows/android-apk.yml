@@ -23,7 +23,12 @@ jobs:
         env:
           VITE_BASE_PATH: ./
           VITE_DISABLE_DEBUG: "1"
-        run: npx vite build --assetsDir js
+          VITE_AUDIO_BASE: js/
+        run: |
+          npx vite build --assetsDir js
+          # Sweetmelon bundles only top-level files of www/, css/, js/, img/: flatten audio into js/
+          if [ -d dist/audio ]; then mv dist/audio/*.ogg dist/js/ && rm -rf dist/audio; fi
+          ls dist/js/*.ogg | wc -l
 
       - name: Prepare www folder
         run: |
