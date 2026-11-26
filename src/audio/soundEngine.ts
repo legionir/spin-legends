@@ -8,7 +8,9 @@ import {
   abilitySoundKey,
 } from './audioManifest';
 
-const AUDIO_BASE = `${import.meta.env?.BASE_URL ?? '/'}audio/`;
+// APK builds set VITE_AUDIO_BASE (e.g. 'js/') because Sweetmelon only bundles top-level www/, css/, js/, img/ files.
+const AUDIO_BASE: string =
+  (import.meta.env?.VITE_AUDIO_BASE as string | undefined) || `${import.meta.env?.BASE_URL ?? '/'}audio/`;
 
 interface PlayOpts {
   gain?: number;
